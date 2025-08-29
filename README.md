@@ -3,7 +3,7 @@
 This is a custom integration for [Home Assistant](https://www.home-assistant.io/) that allows you to monitor your **Tigo Energy solar system**, including each individual panel, in real-time using Tigo’s public API.
 
 > ✅ **Important**: This integration requires an active **Tigo EI Premium subscription**.  
-> More info: [Tigo EI Premium Plan](https://it.tigoenergy.com/ei-solution/premium)
+> More info: [Tigo EI Premium Plan](https://www.tigoenergy.com/ei-solution/premium)
 
 ⚠️ Data is Not Real-Time
 
