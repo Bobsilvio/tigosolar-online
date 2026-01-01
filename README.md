@@ -1,3 +1,5 @@
+[![Sample](https://storage.ko-fi.com/cdn/generated/zfskfgqnf/2025-03-07_rest-7d81acd901abf101cbdf54443c38f6f0-dlmmonph.jpg)](https://ko-fi.com/silviosmart)
+
 # Tigo Energy Integration for Home Assistant
 
 This is a custom integration for [Home Assistant](https://www.home-assistant.io/) that allows you to monitor your **Tigo Energy solar system**, including each individual panel, in real-time using Tigo’s public API.
