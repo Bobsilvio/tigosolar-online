@@ -18,7 +18,7 @@ from typing import Any
 
 import aiohttp
 
-from .base import BaseTigoClient, parse_retry_after
+from .base import BaseTigoClient, log_raw, parse_retry_after
 from .errors import TigoApiError, TigoAuthError, TigoThrottleError
 
 _LOGGER = logging.getLogger(__name__)
@@ -103,11 +103,13 @@ class TigoV4Client(BaseTigoClient):
                         status=resp.status,
                     )
                 try:
-                    return await resp.json(content_type=None)
+                    parsed = await resp.json(content_type=None)
                 except Exception as err:  # noqa: BLE001 - non-JSON 200
                     raise TigoApiError(
                         f"Tigo v4 non-JSON body: {method} {url}: {err}"
                     ) from err
+                log_raw(f"{method} (v4)", url, parsed)
+                return parsed
         except aiohttp.ClientError as err:
             raise TigoApiError(
                 f"Tigo v4 request failed: {method} {url}: {err}"
@@ -235,6 +237,44 @@ class TigoV4Client(BaseTigoClient):
             f"&resourceId=data-{date}-{metric}-{cca_uid}&_={_cache_buster()}"
         )
         return await self._request_json("GET", url)
+
+    async def probe_extra_hardware(self, system_id: int) -> dict[str, dict]:
+        """Hit hardware-gated endpoints and record status + body snippet.
+
+        For users with monitored inverters / meters / batteries (hardware we
+        lack) to capture and share so v4 support can be extended. Never
+        raises; 403/404/422 are expected and informative.
+        """
+        sid = system_id
+        endpoints = {
+            "inverters_list_v3": f"{API_HOST}/api/v3/inverters/list?system_id={sid}",
+            "sources_list_v3": f"{API_HOST}/api/v3/sources/list?system_id={sid}",
+            "generator_list_v3": f"{API_HOST}/api/v3/generator/list?system_id={sid}",
+            "equipment_status_summary": f"{API_HOST}/api/v4/equipment-status/summary?systemId={sid}",
+            "equipment_status_latest": f"{API_HOST}/api/v4/equipment-status/latest?systemId={sid}",
+            "batteries": f"{API_HOST}/api/v4/equipments/{sid}/batteries",
+            "data_aggregate_solar": (
+                f"{API_HOST}/api/v4/data/aggregate?view=solar&systemId={sid}"
+                f"&type=bar&agg=hour"
+            ),
+            "heat_pumps": f"{API_HOST}/api/v4/heat-pumps?systemId={sid}",
+        }
+        result: dict[str, dict] = {}
+        for name, url in endpoints.items():
+            try:
+                async with self._session.get(
+                    url, headers=self._auth_headers
+                ) as resp:
+                    body = await resp.text()
+                    status = resp.status
+            except aiohttp.ClientError as err:
+                result[name] = {"status": None, "error": str(err)}
+                log_raw(f"PROBE {name}", url, f"<error {err}>")
+                continue
+            snippet = body[:1500]
+            result[name] = {"status": status, "snippet": snippet}
+            log_raw(f"PROBE {name} [{status}]", url, snippet)
+        return result
 
     async def get_agg_energy(self, system_id: int, date: str) -> dict:
         """GET /api/v4/system/summary/aggenergy -> per-object_id daily Wh.

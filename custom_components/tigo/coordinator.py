@@ -46,6 +46,7 @@ from .const import (
     CONF_ENERGY_POLL_INTERVAL,
     CONF_NIGHT_SKIP,
     CONF_PANEL_SCAN_INTERVAL,
+    CONF_PROBE_EXTRA_HARDWARE,
     DEFAULT_ENERGY_POLL_INTERVAL,
     DEFAULT_NIGHT_SKIP,
     DEFAULT_PANEL_SCAN_INTERVAL,
@@ -150,6 +151,8 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
             opts.get(CONF_ENERGY_POLL_INTERVAL, DEFAULT_ENERGY_POLL_INTERVAL)
         )
         self._night_skip = bool(opts.get(CONF_NIGHT_SKIP, DEFAULT_NIGHT_SKIP))
+        self._probe_extra = bool(opts.get(CONF_PROBE_EXTRA_HARDWARE, False))
+        self.extra_probe: dict[str, Any] = {}
 
         self._metrics = [METRIC_PIN]
         if opts.get(CONF_ENABLE_VOLTAGE):
@@ -280,6 +283,15 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
                 )
             except TigoApiError:
                 self._meta.capabilities = {}
+            if self._probe_extra and hasattr(
+                self.client, "probe_extra_hardware"
+            ):
+                try:
+                    self.extra_probe = await self.client.probe_extra_hardware(
+                        self.system_id
+                    )
+                except TigoApiError as err:
+                    _LOGGER.debug("Extra-hardware probe failed: %s", err)
             await self._refresh_system_info(today)
             self._meta.current_date = date_str
 

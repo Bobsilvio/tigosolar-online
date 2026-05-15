@@ -24,6 +24,28 @@ _LOGGER = logging.getLogger(__name__)
 _EXPIRY_MARGIN = timedelta(days=1)
 
 
+def _redact_url(url: str) -> str:
+    """Strip obvious secrets from a URL for logging."""
+    import re
+
+    return re.sub(r"(auth|token|password)=[^&]+", r"\1=<redacted>", url)
+
+
+def log_raw(tag: str, url: str, payload: object) -> None:
+    """DEBUG-log a raw request/response so users on other hardware can share.
+
+    Guarded by the logger level: enabling debug for ``custom_components.tigo``
+    (or the integration's verbose option) turns this on. Bodies are truncated;
+    obvious secrets in the URL are redacted.
+    """
+    if not _LOGGER.isEnabledFor(logging.DEBUG):
+        return
+    text = repr(payload)
+    if len(text) > 4000:
+        text = text[:4000] + f"... <+{len(text) - 4000} chars>"
+    _LOGGER.debug("RAW %s %s -> %s", tag, _redact_url(url), text)
+
+
 def parse_retry_after(value: str | None) -> float | None:
     """Parse a Retry-After header (delta-seconds or HTTP-date) to seconds."""
     if not value:
