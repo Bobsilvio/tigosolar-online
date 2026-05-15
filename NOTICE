@@ -1,0 +1,18 @@
+Tigo Energy — Home Assistant custom integration
+Copyright 2025 Bobsilvio (https://github.com/Bobsilvio)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Originally created by Bobsilvio as "tigosolar-online":
+  https://github.com/Bobsilvio/tigosolar-online
+
+Inspired by the Tigo Integration work of MartinStoffel.
+
+This fork (https://github.com/TerryFrench/tigosolar-online) adds support for
+the Tigo v4 cloud API (mapi.tigoenergy.com) with v3 fallback, premium-account
+handling, token lifecycle management, incremental fetching, resilient backoff
+that respects server throttling, Home Assistant Energy Dashboard compatibility,
+inverter/string device modelling, and shareable diagnostics/debug logging.
+
+Not affiliated with, endorsed by, or supported by Tigo Energy, Inc.
+"Tigo" is a trademark of Tigo Energy, Inc. Use at your own risk.
