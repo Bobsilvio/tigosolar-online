@@ -21,6 +21,58 @@ Don't forget to follow me on social media:
 
 This is a custom integration for [Home Assistant](https://www.home-assistant.io/) that allows you to monitor your **Tigo Energy solar system**, including each individual panel, in real-time using Tigo’s public API.
 
+---
+
+## 🆕 v2 — Tigo **v4** cloud API (this fork)
+
+This is a fork of [Bobsilvio/tigosolar-online](https://github.com/Bobsilvio/tigosolar-online)
+upgraded to Tigo's current **v4** cloud API (`mapi.tigoenergy.com`, the API the
+official Tigo mobile app uses), with the legacy **v3** API kept as an automatic
+fallback. Highlights:
+
+- **API selection**: `auto` (try v4, fall back to v3), `v4`, or `v3` — set at
+  setup and changeable in **Options**.
+- **Token lifecycle**: long-lived token persisted across restarts; transparent
+  re-login on expiry/401, with a proper **re-authentication** flow.
+- **Premium toggle**: tell the integration whether the account has a Tigo EI
+  Premium subscription; non-premium degrades gracefully to system-level data
+  instead of erroring.
+- **Resilience for Tigo's flaky cloud**: exponential backoff with jitter,
+  **strict respect of throttling** (`429` / `503` + `Retry-After`), a
+  `binary_sensor` showing Tigo API connectivity, and a Repair issue raised
+  during prolonged outages (auto-cleared on recovery).
+- **Efficient polling**: incremental per-minute fetch (no duplicate history),
+  night skip, and CCA-cadence skip so we never hammer the API.
+- **Energy Dashboard**: a monotonic lifetime **Production** sensor
+  (`kWh`, `total_increasing`) that survives restarts and midnight resets — add
+  it under *Settings → Energy → Solar production*.
+- **Diagnostics**: redacted downloadable diagnostics + optional verbose logging
+  and an extra-hardware probe (see below).
+
+### Energy Dashboard setup
+
+Add **`sensor.tigo_system_production`** as a *Solar production* source under
+**Settings → Energy**. Use that sensor (not "Production Today"): it is a
+monotonic `total_increasing` kWh counter, so Home Assistant's long-term
+statistics handle midnight/DST correctly. "Production Today" and per-panel
+"Energy" sensors are also available for tiles/automations.
+
+### A note on DUO modules
+
+Tigo `TS4-R-X-DUO` optimizers have a **single** input with two panels wired in
+series, so they report **one** voltage/current/power value and appear as a
+single "panel" — this is expected, not a missing panel.
+
+### Got inverters / meters / batteries? Help extend the integration
+
+This fork was developed on a panels-only system. If your account has
+**monitored inverters, net/consumption meters, or batteries**, enable
+*Options → "Probe & log extra hardware"* (and optionally *Verbose debug
+logging*), reproduce the data in the Tigo app, then download
+**Settings → Devices & Services → Tigo → ⋯ → Download diagnostics**
+(secrets are redacted) and open an issue with it attached. That payload is
+what we need to add v4 support for that hardware.
+
 > ✅ **Important**: This integration requires an active **Tigo EI Premium subscription**.
 
 > More info: Italian [Tigo EI Premium Plan](https://it.tigoenergy.com/ei-solution/premium)
@@ -117,15 +169,22 @@ This integration requires your **Tigo account email and password** to authentica
 
 ## 🛠 Development Notes
 
-- API calls are rate-limited; the integration performs **one single API call per parameter** and shares the result across all sensors.
-- This integration uses **`DataUpdateCoordinator`** to cache and refresh data every 60 seconds (panels) and 5 minutes (system summary).
-- System layout is retrieved once during setup and reused.
+- A **single shared `DataUpdateCoordinator`** drives all entities (no per-panel polling).
+- Telemetry is fetched **incrementally** (only minutes newer than the last processed one) so history is not spammed; energy is polled less often (default 5 min).
+- Polling backs off on errors and **respects `Retry-After`/429/503**; it skips at night and when the CCA's `lastData` has not advanced.
+- Topology (layout + equipment order) is retrieved at setup; equipment-order drift is detected and the mapping rebuilt.
 
 ## 🙏 Credits
 
-Built and maintained by [Bobsilvio]
+Originally built and maintained by [Bobsilvio](https://github.com/Bobsilvio/tigosolar-online) (Apache-2.0).
+
+v2 (Tigo v4 API upgrade, resilience, Energy Dashboard, diagnostics) by
+[TerryFrench](https://github.com/TerryFrench/tigosolar-online), with the
+intent to contribute back upstream.
 
 Inspired by the great work of [MartinStoffel's Tigo Integration](https://github.com/MartinStoffel/tigo)
+
+See `NOTICE` for full attribution.
 
 ---
 
