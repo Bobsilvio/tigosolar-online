@@ -444,6 +444,21 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
         }
 
     # ------------------------------------------------------------------ #
+    # restore seeding (called by RestoreSensor entities on startup so the
+    # monotonic lifetime counters survive a HA restart)
+    # ------------------------------------------------------------------ #
+    def seed_system_energy(self, lifetime_kwh: float) -> None:
+        if lifetime_kwh and self._sys_energy.cumulative_wh == 0.0:
+            self._sys_energy.cumulative_wh = float(lifetime_kwh) * 1000.0
+
+    def seed_panel_energy(self, object_id: str, lifetime_kwh: float) -> None:
+        if not object_id or not lifetime_kwh:
+            return
+        st = self._panel_energy.setdefault(object_id, _EnergyState())
+        if st.cumulative_wh == 0.0:
+            st.cumulative_wh = float(lifetime_kwh) * 1000.0
+
+    # ------------------------------------------------------------------ #
     # outage repair issue
     # ------------------------------------------------------------------ #
     def _maybe_raise_outage_issue(self) -> None:

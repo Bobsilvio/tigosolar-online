@@ -125,12 +125,115 @@ class TigoV3Client(BaseTigoClient):
             headers=self._auth_headers,
         )
 
-    async def get_system_info(self, system_id: int) -> dict:
+    async def get_systems(self) -> list[dict]:
         data = await self._get_json(
-            f"{API_BASE_URL}/systems/view?id={system_id}",
-            headers=self._auth_headers,
+            f"{API_BASE_URL}/systems", headers=self._auth_headers
         )
-        return data.get("system", {}) if isinstance(data, dict) else {}
+        return data.get("systems", []) if isinstance(data, dict) else []
+
+    async def get_system_info(self, system_id: int, date: str | None = None) -> dict:
+        # v3 has no premium/feature/sunrise info; return empty so the
+        # coordinator falls back to safe defaults (no night-skip, v3
+        # metrics fetched regardless of premium flags).
+        return {}
+
+    async def get_capabilities(self, system_id: int) -> dict:
+        return {}
+
+    # -- coordinator-compatible adapters (coarse: latest value only) -- #
+    _METRIC_PARAM = {
+        "pin": "Pin",
+        "vin": "Vin",
+        "iin": "Iin",
+        "rssi": "RSSI",
+    }
+
+    async def get_equipments(self, system_id: int) -> list[dict]:
+        """Synthesize the v4 equipments list from the v3 layout tree.
+
+        Order = layout panel order; equipmentSerial carries the per-panel
+        object_id so topology can map aggregate values (which use header=id).
+        """
+        layout = await self.get_system_layout(system_id)
+        system = layout.get("system", {}) if isinstance(layout, dict) else {}
+        out: list[dict] = []
+        for inv in system.get("inverters", []) or []:
+            for mppt in inv.get("mppts", []) or []:
+                for string in mppt.get("strings", []) or []:
+                    for panel in string.get("panels", []) or []:
+                        out.append(
+                            {
+                                "equipmentId": panel.get("label")
+                                or str(panel.get("object_id")),
+                                "equipmentType": "panel",
+                                "equipmentSerial": panel.get("serial"),
+                                "equipmentModel": panel.get("type"),
+                                "_object_id": str(panel.get("object_id")),
+                            }
+                        )
+        self._equip_object_ids = [e["_object_id"] for e in out]
+        return out
+
+    async def _fetch_param_latest(
+        self, system_id: int, param: str
+    ) -> dict[str, float]:
+        today = datetime.now(timezone.utc).date()
+        start = datetime.combine(
+            today, datetime.min.time(), tzinfo=timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%S")
+        end = datetime.combine(
+            today, datetime.max.time(), tzinfo=timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%S")
+        url = (
+            f"{API_BASE_URL}/data/aggregate"
+            f"?system_id={system_id}&start={start}&end={end}&level=min"
+            f"&param={param}&header=id&sensors=true"
+        )
+        try:
+            async with self._session.get(
+                url, headers={"Authorization": f"Bearer {self.token}"}
+            ) as resp:
+                if resp.status == 401:
+                    raise TigoAuthError(f"Tigo v3 unauthorized [{param}]")
+                if resp.status != 200:
+                    raise TigoApiError(
+                        f"Tigo v3 error [{param}]: {resp.status}",
+                        status=resp.status,
+                    )
+                text = await resp.text()
+        except aiohttp.ClientError as err:
+            raise TigoApiError(f"Tigo v3 request failed [{param}]: {err}") from err
+        return parse_param_csv(text, param, latest_only=True)
+
+    async def get_panel_summary(
+        self, system_id: int, date: str, metric: str, cca_uid: str
+    ) -> dict:
+        """v4-summary-shaped payload with a single latest-minute row."""
+        param = self._METRIC_PARAM.get(metric, metric)
+        values = await self._fetch_param_latest(system_id, param)
+        if not getattr(self, "_equip_object_ids", None):
+            await self.get_equipments(system_id)
+        order = self._equip_object_ids
+        now = datetime.now()
+        row_d = [values.get(oid, "-") for oid in order]
+        return {
+            "dataType": metric,
+            "dataset": [{"data": [{"t": now.strftime("%H:%M"), "d": row_d}]}],
+            "lastData": now.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+    async def get_agg_energy(self, system_id: int, date: str) -> dict:
+        """System daily energy only (v3 has no per-panel daily energy here)."""
+        summary = await self.get_system_summary(system_id)
+        daily_kwh = (
+            summary.get("daily_energy_dc")
+            or summary.get("daily_energy")
+            or 0.0
+        )
+        return {
+            "dataset": {},
+            "dailyStats": {"total_agg_energy": float(daily_kwh) * 1000.0},
+        }
 
     async def get_system_summary(self, system_id: int) -> dict[str, float]:
         data = await self._get_json(

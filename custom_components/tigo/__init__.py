@@ -1,39 +1,36 @@
 """Tigo Energy integration setup.
 
-Commit 4: authentication now goes through ``async_create_client`` (factory +
-token lifecycle: re-login on 401/expiry, token persisted into the entry).
-
-The data path still consumes the v3 client shapes, so the factory is pinned to
-``api_pref="v3"`` here for now; the switch to v4/auto happens once the
-coordinator and entity model are reworked (commits 6 & 8).
+Commit 8: the integration now runs on the v4/auto data path via
+``TigoDataUpdateCoordinator``; entities (sensor + binary_sensor) read from it.
 """
 
 import logging
-from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import TigoApiError, TigoAuthError, async_create_client
-from .const import DOMAIN
+from .api import API_AUTO, TigoAuthError, async_create_client
+from .const import CONF_API_VERSION, CONF_VERBOSE_LOGGING, DOMAIN
+from .coordinator import TigoDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-SCAN_INTERVAL = timedelta(seconds=60)
 
-PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "binary_sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Setting up Tigo integration")
 
+    opts = {**entry.data, **entry.options}
+    if opts.get(CONF_VERBOSE_LOGGING):
+        logging.getLogger("custom_components.tigo").setLevel(logging.DEBUG)
+
     session = async_get_clientsession(hass)
 
     def _store_token(state: dict[str, Any]) -> None:
-        # Persist token state so a restart can reuse a still-valid token.
         if state.get("token") and state.get("token") != entry.data.get("token"):
             hass.config_entries.async_update_entry(
                 entry, data={**entry.data, **state}
@@ -44,33 +41,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             session,
             entry.data["email"],
             entry.data["password"],
-            api_pref="v3",  # TODO(commit 6/8): switch to "auto" with v4 data path
+            api_pref=opts.get(CONF_API_VERSION, API_AUTO),
             token_store=_store_token,
         )
-        system_id = await client.get_system_id()
+        systems = await _resolve_systems(client)
+        system_id = _pick_system(entry, systems)
     except TigoAuthError as err:
         raise ConfigEntryAuthFailed(str(err)) from err
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         raise ConfigEntryNotReady(f"Tigo setup failed: {err}") from err
 
-    async def update_method():
-        try:
-            return await client.auth_retry(
-                lambda: client.fetch_panel_data(system_id)
-            )
-        except TigoAuthError as err:
-            raise ConfigEntryAuthFailed(str(err)) from err
-        except TigoApiError as err:
-            raise UpdateFailed(str(err)) from err
-
-    coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        name="Tigo Panel Data",
-        update_method=update_method,
-        update_interval=SCAN_INTERVAL,
-    )
-
+    coordinator = TigoDataUpdateCoordinator(hass, entry, client, system_id)
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
@@ -79,8 +60,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "system_id": system_id,
     }
 
+    entry.async_on_unload(entry.add_update_listener(_async_reload))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def _resolve_systems(client) -> list[dict]:
+    """Return [{system_id,...}] across v3/v4 client shapes."""
+    if hasattr(client, "get_systems"):
+        try:
+            return await client.get_systems()
+        except Exception:  # noqa: BLE001
+            pass
+    sid = await client.get_system_id()
+    return [{"system_id": sid}]
+
+
+def _pick_system(entry: ConfigEntry, systems: list[dict]) -> int:
+    want = entry.data.get("system_id")
+    if want is not None:
+        return int(want)
+    if not systems:
+        raise ConfigEntryNotReady("No Tigo systems on this account")
+    first = systems[0]
+    return int(first.get("system_id") or first.get("id"))
+
+
+async def _async_reload(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
