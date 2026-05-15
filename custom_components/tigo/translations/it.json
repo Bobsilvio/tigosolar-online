@@ -1,0 +1,58 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tigo Energy",
+        "description": "Accedi con il tuo account Tigo (le stesse credenziali dell'app Tigo).",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "premium": "Ho un abbonamento Tigo EI Premium",
+          "api_version": "Versione API"
+        }
+      },
+      "system": {
+        "title": "Seleziona impianto",
+        "data": { "system_id": "Impianto" }
+      },
+      "reauth_confirm": {
+        "title": "Ri-autenticazione Tigo",
+        "description": "Il token Tigo è scaduto o è stato rifiutato. Inserisci di nuovo le credenziali.",
+        "data": { "email": "Email", "password": "Password" }
+      }
+    },
+    "error": {
+      "invalid_auth": "Email o password non validi.",
+      "cannot_connect": "Impossibile contattare il cloud Tigo. Riprova più tardi."
+    },
+    "abort": {
+      "already_configured": "Questo impianto Tigo è già configurato.",
+      "reauth_successful": "Ri-autenticazione riuscita."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni Tigo",
+        "data": {
+          "api_version": "Versione API",
+          "premium": "Abbonamento Tigo EI Premium",
+          "panel_scan_interval": "Intervallo lettura pannelli (secondi)",
+          "energy_poll_interval": "Intervallo lettura energia (secondi)",
+          "night_skip": "Salta le letture di notte",
+          "enable_voltage": "Crea sensori di tensione per pannello",
+          "enable_current": "Crea sensori di corrente per pannello",
+          "enable_rssi": "Crea sensori di segnale per pannello",
+          "verbose_logging": "Log di debug dettagliato",
+          "probe_extra_hardware": "Sonda e registra hardware extra (inverter/contatori/batterie) per la diagnostica"
+        }
+      }
+    }
+  },
+  "issues": {
+    "api_unreachable": {
+      "title": "Cloud Tigo irraggiungibile",
+      "description": "L'API cloud Tigo non risponde da un po'. I dati sono in pausa e riprenderanno automaticamente al ripristino del servizio; l'integrazione applica backoff e rispetta eventuali limitazioni."
+    }
+  }
+}
