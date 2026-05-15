@@ -18,6 +18,7 @@ from typing import Any
 
 import aiohttp
 
+from .base import BaseTigoClient
 from .errors import TigoApiError, TigoAuthError
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,19 +38,18 @@ def _cache_buster() -> int:
     return int(time.time() * 1000)
 
 
-class TigoV4Client:
+class TigoV4Client(BaseTigoClient):
     """Async wrapper over the Tigo v4 endpoints used by the integration.
 
-    Token lifecycle (re-login/refresh on 401/expiry) is layered on in the
-    factory commit; here ``login`` simply authenticates and stores the token,
-    refresh token and expiry so later code can manage them.
+    Credential storage and the re-login/expiry lifecycle come from
+    ``BaseTigoClient``; ``_do_login`` authenticates and records the token,
+    refresh token and expiry.
     """
 
+    api_version = "v4"
+
     def __init__(self, session: aiohttp.ClientSession, token: str | None = None) -> None:
-        self._session = session
-        self.token: str | None = token
-        self.refresh_token: str | None = None
-        self.expires: datetime | None = None
+        super().__init__(session, token)
         self.user_id: int | None = None
         self.user_type: str | None = None
 
@@ -103,7 +103,7 @@ class TigoV4Client:
     # ------------------------------------------------------------------ #
     # auth
     # ------------------------------------------------------------------ #
-    async def login(self, email: str, password: str) -> str:
+    async def _do_login(self, email: str, password: str) -> str:
         """POST /api/v3/user/login?type=8 -> store and return bearer token."""
         url = f"{API_HOST}/api/v3/user/login?type=8"
         try:

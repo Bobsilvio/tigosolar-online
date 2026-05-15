@@ -17,6 +17,7 @@ from typing import Any
 
 import aiohttp
 
+from .base import BaseTigoClient
 from .errors import TigoApiError, TigoAuthError
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,12 +68,10 @@ def parse_param_csv(csv_text: str, param: str, latest_only: bool = False) -> dic
     return result
 
 
-class TigoV3Client:
+class TigoV3Client(BaseTigoClient):
     """Minimal async wrapper over the Tigo v3 endpoints used by the integration."""
 
-    def __init__(self, session: aiohttp.ClientSession, token: str | None = None) -> None:
-        self._session = session
-        self.token = token
+    api_version = "v3"
 
     @property
     def _auth_headers(self) -> dict[str, str]:
@@ -92,7 +91,7 @@ class TigoV3Client:
         except aiohttp.ClientError as err:
             raise TigoApiError(f"Tigo API request failed: GET {url}: {err}") from err
 
-    async def login(self, email: str, password: str) -> str:
+    async def _do_login(self, email: str, password: str) -> str:
         """HTTP Basic-auth login; stores and returns the bearer token."""
         url = f"{API_BASE_URL}/users/login"
         try:
