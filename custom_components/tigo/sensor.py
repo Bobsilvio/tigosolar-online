@@ -10,7 +10,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Coor
 from homeassistant.components.sensor import SensorEntity
 
 from .const import DOMAIN
-from .tigo_api import fetch_system_layout, fetch_system_info, fetch_system_summary
 
 from homeassistant.const import (
     UnitOfPower,
@@ -75,12 +74,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator = data["coordinator"]
-    token = data["token"]
+    client = data["client"]
     system_id = data["system_id"]
 
     await register_device(hass, system_id, entry)
-    layout = await hass.async_add_executor_job(fetch_system_layout, system_id, token)
-    await hass.async_add_executor_job(fetch_system_info, system_id, token)
+    layout = await client.get_system_layout(system_id)
+    await client.get_system_info(system_id)
 
     entities = []
 
@@ -128,7 +127,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     SYSTEM_SCAN_INTERVAL = timedelta(minutes=5)
 
     async def fetch_summary_data():
-        return await hass.async_add_executor_job(fetch_system_summary, system_id, token)
+        return await client.get_system_summary(system_id)
 
     summary_coordinator = DataUpdateCoordinator(
         hass,
