@@ -162,6 +162,17 @@ class TigoV4Client(BaseTigoClient):
             f"{API_HOST}/api/v3/systems/full/{system_id}?system_id={system_id}",
         )
 
+    async def get_system_layout(self, system_id: int) -> dict:
+        """GET /api/v3/systems/layout -> inverter/mppt/string/panel tree.
+
+        Authoritative per-panel mapping: each panel carries object_id, label,
+        serial and type. (mapi serves the /api/v3/* paths too.)
+        """
+        return await self._request_json(
+            "GET",
+            f"{API_HOST}/api/v3/systems/layout?id={system_id}",
+        )
+
     async def get_capabilities(self, system_id: int) -> dict:
         """GET /api/v4/systems/view/{id}?includes=details -> has_* flags."""
         data = await self._request_json(
