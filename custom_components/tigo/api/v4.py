@@ -18,8 +18,8 @@ from typing import Any
 
 import aiohttp
 
-from .base import BaseTigoClient
-from .errors import TigoApiError, TigoAuthError
+from .base import BaseTigoClient, parse_retry_after
+from .errors import TigoApiError, TigoAuthError, TigoThrottleError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,12 +82,25 @@ class TigoV4Client(BaseTigoClient):
             ) as resp:
                 body = await resp.text()
                 if resp.status == 401:
-                    raise TigoAuthError(f"Tigo v4 unauthorized: {method} {url}")
+                    raise TigoAuthError(
+                        f"Tigo v4 unauthorized: {method} {url}", status=401
+                    )
+                if resp.status == 429 or (
+                    resp.status == 503 and "Retry-After" in resp.headers
+                ):
+                    raise TigoThrottleError(
+                        f"Tigo v4 throttled {resp.status}: {method} {url}",
+                        status=resp.status,
+                        retry_after=parse_retry_after(
+                            resp.headers.get("Retry-After")
+                        ),
+                    )
                 if resp.status != 200:
                     # Surface status + a short body snippet; callers (coordinator)
-                    # decide how to treat 403/404/422/429/5xx.
+                    # decide how to treat 403/404/422/5xx.
                     raise TigoApiError(
                         f"Tigo v4 error {resp.status}: {method} {url} :: {body[:200]}",
+                        status=resp.status,
                     )
                 try:
                     return await resp.json(content_type=None)

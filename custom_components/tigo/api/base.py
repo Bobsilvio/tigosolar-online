@@ -8,6 +8,7 @@ then surfaces ``TigoAuthError`` for the caller to map to a reauth flow.
 
 from __future__ import annotations
 
+import email.utils
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
@@ -21,6 +22,25 @@ _LOGGER = logging.getLogger(__name__)
 
 # Re-login this long before the stated token expiry.
 _EXPIRY_MARGIN = timedelta(days=1)
+
+
+def parse_retry_after(value: str | None) -> float | None:
+    """Parse a Retry-After header (delta-seconds or HTTP-date) to seconds."""
+    if not value:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        when = email.utils.parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if when is None:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    delta = (when - datetime.now(timezone.utc)).total_seconds()
+    return max(delta, 0.0)
 
 
 class BaseTigoClient:
