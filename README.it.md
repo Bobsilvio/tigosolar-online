@@ -2,6 +2,15 @@
 
 Questa è un'integrazione personalizzata per [Home Assistant](https://www.home-assistant.io/) che ti consente di monitorare il tuo **impianto solare Tigo Energy**, inclusi i singoli pannelli, in tempo reale utilizzando le API ufficiali di Tigo.
 
+> 🆕 **v2** — fork che usa la **API v4** di Tigo (`mapi.tigoenergy.com`, quella
+> dell'app ufficiale) con fallback automatico alla **v3**: gestione token e
+> ri-autenticazione, opzione abbonamento Premium, backoff resiliente che
+> rispetta il throttling, sensore di connettività, compatibilità con la
+> **Dashboard Energia** (sensore `sensor.tigo_system_production`), e
+> diagnostica scaricabile. Vedi il `README.md` in inglese per i dettagli e la
+> guida alla condivisione dei log per chi ha inverter/contatori/batterie
+> monitorati.
+
 > ✅ **Importante**: Questa integrazione richiede un abbonamento attivo a **Tigo EI Premium**.  
 > Maggiori info: [Piano Tigo EI Premium](https://it.tigoenergy.com/ei-solution/premium)
 

@@ -1,0 +1,58 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tigo Energy",
+        "description": "Sign in with your Tigo account (the same credentials as the Tigo mobile app).",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "premium": "I have a Tigo EI Premium subscription",
+          "api_version": "API version"
+        }
+      },
+      "system": {
+        "title": "Select system",
+        "data": { "system_id": "System" }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Tigo",
+        "description": "Your Tigo token expired or was rejected. Enter your credentials again.",
+        "data": { "email": "Email", "password": "Password" }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Could not reach the Tigo cloud. Try again later."
+    },
+    "abort": {
+      "already_configured": "This Tigo system is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tigo options",
+        "data": {
+          "api_version": "API version",
+          "premium": "Tigo EI Premium subscription",
+          "panel_scan_interval": "Panel poll interval (seconds)",
+          "energy_poll_interval": "Energy poll interval (seconds)",
+          "night_skip": "Skip polling at night",
+          "enable_voltage": "Create per-panel voltage sensors",
+          "enable_current": "Create per-panel current sensors",
+          "enable_rssi": "Create per-panel signal-strength sensors",
+          "verbose_logging": "Verbose debug logging",
+          "probe_extra_hardware": "Probe & log extra hardware (inverters/meters/batteries) for diagnostics"
+        }
+      }
+    }
+  },
+  "issues": {
+    "api_unreachable": {
+      "title": "Tigo cloud unreachable",
+      "description": "The Tigo cloud API has been failing for a while. Data is paused and will resume automatically when the service recovers; the integration is backing off and respecting any throttling."
+    }
+  }
+}
