@@ -69,7 +69,6 @@ async def async_setup_entry(
     coordinator = data["coordinator"]
     system_id = data["system_id"]
     topo = coordinator.topology
-    enabled = set(coordinator._metrics)  # pin always; others per options
 
     entities: list[SensorEntity] = [
         TigoSystemPower(coordinator, system_id),
@@ -103,11 +102,23 @@ async def async_setup_entry(
             "suggested_area": meta.string_label,
         }
         for metric, (suffix, mname, unit, dclass, optin) in PANEL_METRICS.items():
-            if metric not in enabled:
-                continue
+            # All metrics are always registered. Power is enabled by
+            # default; Voltage/Current/RSSI are registered but
+            # disabled-by-default (optin=True) so they are discoverable
+            # and can be enabled per-entity in the UI. The coordinator
+            # starts fetching a metric as soon as one of its entities is
+            # enabled (or the matching Options toggle is set).
             entities.append(
                 TigoPanelSensor(
-                    coordinator, meta, metric, suffix, mname, unit, dclass, device
+                    coordinator,
+                    meta,
+                    metric,
+                    suffix,
+                    mname,
+                    unit,
+                    dclass,
+                    device,
+                    enabled_default=not optin,
                 )
             )
         if meta.object_id:
@@ -193,7 +204,16 @@ class TigoPanelSensor(CoordinatorEntity, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(
-        self, coordinator, meta, metric, suffix, name, unit, dclass, device
+        self,
+        coordinator,
+        meta,
+        metric,
+        suffix,
+        name,
+        unit,
+        dclass,
+        device,
+        enabled_default: bool = True,
     ) -> None:
         super().__init__(coordinator)
         self._meta = meta
@@ -206,6 +226,7 @@ class TigoPanelSensor(CoordinatorEntity, SensorEntity):
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class = dclass
         self._attr_device_info = device
+        self._attr_entity_registry_enabled_default = enabled_default
         if metric == METRIC_RSSI:
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
 

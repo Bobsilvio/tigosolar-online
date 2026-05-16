@@ -32,6 +32,7 @@ from zoneinfo import ZoneInfo
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -154,13 +155,16 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
         self._probe_extra = bool(opts.get(CONF_PROBE_EXTRA_HARDWARE, False))
         self.extra_probe: dict[str, Any] = {}
 
-        self._metrics = [METRIC_PIN]
+        # Options force a metric on regardless of entity state. Optional
+        # metrics are otherwise fetched on demand: as soon as the user
+        # enables one of their (disabled-by-default) entities.
+        self._forced_metrics = {METRIC_PIN}
         if opts.get(CONF_ENABLE_VOLTAGE):
-            self._metrics.append(METRIC_VIN)
+            self._forced_metrics.add(METRIC_VIN)
         if opts.get(CONF_ENABLE_CURRENT):
-            self._metrics.append(METRIC_IIN)
+            self._forced_metrics.add(METRIC_IIN)
         if opts.get(CONF_ENABLE_RSSI):
-            self._metrics.append(METRIC_RSSI)
+            self._forced_metrics.add(METRIC_RSSI)
 
         self._meta = _RuntimeMeta()
         self._backoff = _Backoff()
@@ -325,10 +329,45 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
 
         return self._build_result()
 
+    # metric -> entity unique_id suffix (matches sensor.PANEL_METRICS)
+    _METRIC_SUFFIX = {
+        METRIC_PIN: "power",
+        METRIC_VIN: "voltage",
+        METRIC_IIN: "current",
+        METRIC_RSSI: "rssi",
+    }
+
+    def _active_metrics(self) -> list[str]:
+        """pin always; an optional metric is active if forced via options
+        OR at least one of its entities is enabled in the registry."""
+        active = set(self._forced_metrics)
+        try:
+            reg = er.async_get(self.hass)
+            enabled_suffixes = {
+                ent.unique_id.rsplit("_", 1)[-1]
+                for ent in er.async_entries_for_config_entry(
+                    reg, self.entry.entry_id
+                )
+                if ent.disabled_by is None and ent.unique_id
+            }
+            for metric, suffix in self._METRIC_SUFFIX.items():
+                if suffix in enabled_suffixes:
+                    active.add(metric)
+        except Exception:  # noqa: BLE001 - registry not ready -> forced only
+            pass
+        # Stable order: pin, vin, iin, rssi
+        return [
+            m
+            for m in (METRIC_PIN, METRIC_VIN, METRIC_IIN, METRIC_RSSI)
+            if m in active
+        ]
+
     async def _fetch_telemetry(self, date_str: str) -> None:
         # CCA-cadence skip: probe pin first; if lastData unchanged, the other
         # metrics produced no new minute either -> skip them this cycle.
-        metrics = [m for m in self._metrics if m not in self._disabled_metrics]
+        metrics = [
+            m for m in self._active_metrics() if m not in self._disabled_metrics
+        ]
         advanced = True
         for metric in metrics:
             if metric != METRIC_PIN and not advanced:
