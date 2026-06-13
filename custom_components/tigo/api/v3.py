@@ -35,10 +35,7 @@ PARAMS = {
 
 
 def parse_param_csv(csv_text: str, param: str, latest_only: bool = False) -> dict[str, float]:
-    """Parse a /data/aggregate CSV body into ``{panel_id: value}``.
-
-    Unchanged behaviour from the original ``__init__.parse_param_csv``.
-    """
+    """Parse a /data/aggregate CSV body into ``{panel_id: value}``."""
     result: dict[str, float] = {}
     reader = csv.reader(io.StringIO(csv_text))
     rows = list(reader)
@@ -49,13 +46,20 @@ def parse_param_csv(csv_text: str, param: str, latest_only: bool = False) -> dic
     values_rows = rows[1:]
 
     if latest_only:
-        # Find the last row that has at least one valid value.
+        # Latest valid value per column: with sensors=true the CCA sensor
+        # column has newer timestamps than panels (~15 min cloud delay),
+        # so a single "latest row" only ever contains the sensor — no panels.
         for row in reversed(values_rows):
-            values = row[1:]
-            if any(v.strip() not in ("", "NaN") for v in values):
+            for panel_id, value in zip(headers, row[1:]):
+                if str(panel_id) in result or value.strip() in ("", "NaN"):
+                    continue
+                try:
+                    result[str(panel_id)] = float(value)
+                except Exception:
+                    continue
+            if len(result) == len(headers):
                 break
-        else:
-            return {}
+        return result
     else:
         values = values_rows[0][1:]
 
