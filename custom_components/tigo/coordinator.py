@@ -395,11 +395,57 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
                     self._meta.last_lastdata = last_data
                 self._apply_summary(metric, payload)
 
+    def _debug_summary_shape(self, metric: str, rows: list) -> None:
+        """Compact DEBUG dump of the summary d[] layout vs. the topology.
+
+        The full-day payload is ~330 KB, so log_raw truncates it to the
+        (empty) night rows. This logs only the richest row plus the
+        index->equipment_id map, so users can confirm whether per-panel
+        columns are populated and aligned. Issue #7.
+        """
+        if not _LOGGER.isEnabledFor(logging.DEBUG) or self.topology is None:
+            return
+        best: list | None = None
+        best_t = ""
+        best_cnt = -1
+        for row in rows:
+            d = row.get("d") or []
+            cnt = sum(1 for v in d if v not in ("-", "", None))
+            if cnt > best_cnt:
+                best_cnt, best, best_t = cnt, d, row.get("t", "")
+        if best is None:
+            _LOGGER.debug("SUMMARY-SHAPE[%s]: no rows", metric)
+            return
+        n_idx = len(self.topology.by_index)
+        max_idx = max(self.topology.by_index, default=-1)
+        filled = [(i, v) for i, v in enumerate(best) if v not in ("-", "", None)]
+        # For each filled column: does it map to a panel? (else aggregate/skipped)
+        mapped = [
+            (i, v, self.topology.by_index[i].equipment_id)
+            for i, v in filled
+            if i in self.topology.by_index
+        ]
+        unmapped = [(i, v) for i, v in filled if i not in self.topology.by_index]
+        _LOGGER.debug(
+            "SUMMARY-SHAPE[%s]: richest t=%s len(d)=%d non_dash=%d | "
+            "by_index: panels=%d max_idx=%d | "
+            "filled->panel=%s | filled->UNMAPPED(aggregate?)=%s",
+            metric,
+            best_t,
+            len(best),
+            best_cnt,
+            n_idx,
+            max_idx,
+            mapped[:50],
+            unmapped[:50],
+        )
+
     def _apply_summary(self, metric: str, payload: dict) -> None:
         dataset = payload.get("dataset") or []
         if not dataset:
             return
         rows = dataset[0].get("data") or []
+        self._debug_summary_shape(metric, rows)
         seen = self._last_minute.get(metric, -1)
         newest = seen
         newest_row: list | None = None
