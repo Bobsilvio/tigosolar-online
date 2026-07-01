@@ -168,7 +168,6 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
 
         self._meta = _RuntimeMeta()
         self._backoff = _Backoff()
-        self._last_minute: dict[str, int] = {}
         self._panel_vals: dict[str, dict[str, float | None]] = {}
         self._sys_energy = _EnergyState()
         self._panel_energy: dict[str, _EnergyState] = {}
@@ -305,7 +304,6 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
             self._sys_energy.rollover()
             for st in self._panel_energy.values():
                 st.rollover()
-            self._last_minute.clear()
             self._meta.last_lastdata = None
             await self._refresh_system_info(today)
             self._meta.current_date = date_str
@@ -446,28 +444,41 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
             return
         rows = dataset[0].get("data") or []
         self._debug_summary_shape(metric, rows)
-        seen = self._last_minute.get(metric, -1)
-        newest = seen
-        newest_row: list | None = None
+        assert self.topology is not None
+
+        # Per-panel-column latest-valid selection (issue #7). The old code
+        # picked ONE newest row where *any* column was non-dash, then mapped
+        # its whole d[]. But the trailing CCA/aggregate columns (indices >=
+        # len(by_index)) are non-dash in every minute of the day -- including
+        # night and not-yet-reached minutes -- so "newest such row" always
+        # walked to the end-of-day row, where the per-panel columns are still
+        # "-", collapsing every panel to null. This is the same failure the
+        # v2.0.1 changelog fixed for the v3 CSV path, unfixed here.
+        #
+        # Fix: scan every row and, per panel column, keep the highest-minute
+        # non-dash value. Only panel indices (by_index) are considered, so the
+        # always-fresh aggregate columns can't hijack selection.
+        latest: dict[int, tuple[int, Any]] = {}
         for row in rows:
             mi = self._minute_index(row.get("t", ""))
-            if mi <= seen:
+            if mi < 0:
                 continue
             vals = row.get("d") or []
-            if any(v not in ("-", "", None) for v in vals):
-                if mi > newest:
-                    newest = mi
-                    newest_row = vals
-        if newest_row is None:
-            return  # no newer filled minute -> carry forward
-        self._last_minute[metric] = newest
-        assert self.topology is not None
-        for idx, raw in enumerate(newest_row):
-            meta = self.topology.by_index.get(idx)
-            if meta is None:
-                continue
+            for idx in self.topology.by_index:
+                if idx >= len(vals):
+                    continue
+                raw = vals[idx]
+                if raw in ("-", "", None):
+                    continue
+                prev = latest.get(idx)
+                if prev is None or mi > prev[0]:
+                    latest[idx] = (mi, raw)
+        if not latest:
+            return  # nothing populated yet today -> carry forward
+        for idx, (_mi, raw) in latest.items():
+            meta = self.topology.by_index[idx]
             try:
-                val = None if raw in ("-", "", None) else round(float(raw), 2)
+                val = round(float(raw), 2)
             except (TypeError, ValueError):
                 val = None
             self._panel_vals.setdefault(meta.equipment_id, {})[metric] = val
