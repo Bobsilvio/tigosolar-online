@@ -194,4 +194,12 @@ def build_topology(layout: dict, equipments: list[dict]) -> Topology:
         len(topo.inverters),
         topo.cca_uids,
     )
+    if _LOGGER.isEnabledFor(logging.DEBUG):
+        # Full equipment order so the summary d[] columns can be correlated
+        # (the d[] index == this enumerate index). Issue #7.
+        order = [
+            (i, e.get("equipmentId"), (e.get("equipmentType") or "").lower())
+            for i, e in enumerate(equipments)
+        ]
+        _LOGGER.debug("EQUIPMENT-ORDER (d[] index -> id/type): %s", order)
     return topo

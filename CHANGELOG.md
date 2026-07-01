@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.2] - 2026-07-01
+
+### Fixed
+- Per-panel `Pin`/`Vin`/`Iin` (and `system.power_w`) stuck `unavailable` on the
+  v4 API for Premium / `sensors=true` accounts, while per-panel energy worked
+  ([#7](https://github.com/Bobsilvio/tigosolar-online/issues/7)).
+  Root cause: `_apply_summary` selected a single "newest row where *any* column
+  is non-dash", but the trailing CCA/aggregate columns are non-dash in every
+  minute of the day, so selection always walked to the empty end-of-day row and
+  every panel collapsed to `null`. This is the same class of bug the 2.0.1 fix
+  addressed for the v3 CSV path, left unfixed on v4. Fixed by scanning per
+  panel column for its latest non-dash value, ignoring the aggregate columns.
+
+### Added
+- Verbose-gated diagnostics for the summary telemetry layout (`SUMMARY-SHAPE`,
+  `EQUIPMENT-ORDER`) to correlate `d[]` columns with the equipment topology.
+
 ## [2.0.1] - 2026-06-13
 
 ### Fixed
