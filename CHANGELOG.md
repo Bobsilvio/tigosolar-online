@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.3] - 2026-07-01
+
+### Fixed
+- Per-panel live sensors (`Pin`/`Vin`/`Iin`/`RSSI`) received the **wrong
+  panel's** data on the v4 API ([#8](https://github.com/Bobsilvio/tigosolar-online/issues/8)).
+  `_apply_summary` mapped each `d[]` column by its `/api/v4/equipments` index,
+  which is alphabetical (`A1, A10, A11, A2, …`) and does **not** match the
+  summary `d[]` column order. On a fully healthy array every sensor still
+  showed a plausible value, so the swap was invisible unless a panel was dark.
+  Fixed by resolving each column through the summary payload's ground-truth
+  `order` list (matched against `object_id`/`equipmentId`), falling back to the
+  positional index only when no order is present. Thanks @speegs for the
+  root-cause analysis.
+
 ## [2.0.2] - 2026-07-01
 
 ### Fixed
