@@ -195,11 +195,13 @@ def build_topology(layout: dict, equipments: list[dict]) -> Topology:
         topo.cca_uids,
     )
     if _LOGGER.isEnabledFor(logging.DEBUG):
-        # Full equipment order so the summary d[] columns can be correlated
-        # (the d[] index == this enumerate index). Issue #7.
+        # The /api/v4/equipments order (alphabetical: A1, A10, A11, A2, ...).
+        # NOTE: this is NOT the summary d[] column order -- d[] is mapped by
+        # the payload's own `order` list, see coordinator._summary_column_map
+        # (issue #8). Logged only to correlate equipmentId <-> object_id.
         order = [
             (i, e.get("equipmentId"), (e.get("equipmentType") or "").lower())
             for i, e in enumerate(equipments)
         ]
-        _LOGGER.debug("EQUIPMENT-ORDER (d[] index -> id/type): %s", order)
+        _LOGGER.debug("EQUIPMENT-ORDER (equipments list order, NOT d[]): %s", order)
     return topo
