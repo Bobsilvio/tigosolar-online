@@ -55,6 +55,7 @@ from .const import (
     ISSUE_API_UNREACHABLE,
     METRIC_IIN,
     METRIC_PIN,
+    METRIC_RECLAIMED,
     METRIC_RSSI,
     METRIC_VIN,
     OUTAGE_ISSUE_AFTER,
@@ -333,6 +334,7 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
         METRIC_VIN: "voltage",
         METRIC_IIN: "current",
         METRIC_RSSI: "rssi",
+        METRIC_RECLAIMED: "reclaimed",
     }
 
     def _active_metrics(self) -> list[str]:
@@ -353,10 +355,16 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
                     active.add(metric)
         except Exception:  # noqa: BLE001 - registry not ready -> forced only
             pass
-        # Stable order: pin, vin, iin, rssi
+        # Stable order: pin, vin, iin, rssi, reclaimedPower
         return [
             m
-            for m in (METRIC_PIN, METRIC_VIN, METRIC_IIN, METRIC_RSSI)
+            for m in (
+                METRIC_PIN,
+                METRIC_VIN,
+                METRIC_IIN,
+                METRIC_RSSI,
+                METRIC_RECLAIMED,
+            )
             if m in active
         ]
 
