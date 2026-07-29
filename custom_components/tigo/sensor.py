@@ -34,7 +34,14 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, METRIC_IIN, METRIC_PIN, METRIC_RSSI, METRIC_VIN
+from .const import (
+    DOMAIN,
+    METRIC_IIN,
+    METRIC_PIN,
+    METRIC_RECLAIMED,
+    METRIC_RSSI,
+    METRIC_VIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +55,8 @@ PANEL_METRICS = {
                  SensorDeviceClass.CURRENT, True),
     METRIC_RSSI: ("rssi", "Signal Strength", SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
                   None, True),
+    METRIC_RECLAIMED: ("reclaimed", "Reclaimed Power", UnitOfPower.WATT,
+                       SensorDeviceClass.POWER, True),
 }
 
 

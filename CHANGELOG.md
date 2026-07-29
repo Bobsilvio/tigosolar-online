@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.0] - 2026-07-01
+
+### Added
+- Per-panel **Reclaimed Power** sensor (`Display.reclaimedPower`), exposing the
+  power recovered by the TS4 optimizers. Registered disabled-by-default like
+  Voltage/Current/RSSI — enable the entity (or it auto-fetches once enabled) to
+  start polling the `reclaimedPower` summary metric. Not entitled on every
+  account; the coordinator disables it for the session on a 403.
+
 ## [2.0.3] - 2026-07-01
 
 ### Fixed
