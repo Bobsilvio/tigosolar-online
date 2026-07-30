@@ -426,6 +426,30 @@ class TigoDataUpdateCoordinator(DataUpdateCoordinator):
             len(col_map),
             [(i, col_map[i].equipment_id) for i in sorted(col_map)[:6]],
         )
+        # Upload cadence: which minute slots are populated at all, and where
+        # the newest ones sit. Comparing two consecutive polls answers whether
+        # a CCA upload back-fills a batch of 1-minute slots or only adds a
+        # single sample per cycle. Issue #12.
+        probe = next(iter(sorted(col_map)), None)
+        if probe is not None:
+            mins = [
+                self._minute_index(r.get("t", ""))
+                for r in rows
+                if (r.get("d") or [None] * (probe + 1))[probe]
+                not in ("-", "", None)
+            ]
+            mins = [m for m in mins if m >= 0]
+            tail = [f"{m // 60:02d}:{m % 60:02d}" for m in sorted(mins)[-12:]]
+            _LOGGER.debug(
+                "SUMMARY-CADENCE[%s]: col %d (%s) populated_minutes=%d "
+                "newest_12=%s",
+                metric,
+                probe,
+                col_map[probe].equipment_id,
+                len(mins),
+                tail,
+            )
+
         if best is None:
             _LOGGER.debug("SUMMARY-SHAPE[%s]: no rows", metric)
             return
