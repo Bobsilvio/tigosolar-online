@@ -30,6 +30,7 @@ from homeassistant.const import (
     UnitOfPower,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -97,6 +98,20 @@ async def async_setup_entry(
             + ("" if inv.is_monitored else " (unmonitored)"),
             "via_device": (DOMAIN, str(system_id)),
         }
+
+    # The system and inverter devices carry no entities of their own, and Home
+    # Assistant only creates a device when an entity declares it. Without this
+    # they never exist, so every panel's via_device points at a missing device
+    # and HA logs "referencing a non existing `via_device`". Register them up
+    # front, parents first, so the System -> Inverter -> Panel chain resolves.
+    device_registry = dr.async_get(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id, **_sys_device(system_id)
+    )
+    for inv_dev in inv_device.values():
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id, **inv_dev
+        )
 
     for meta in (topo.panels if topo else []):
         parent = inv_device.get(meta.inverter_id, {}).get(
