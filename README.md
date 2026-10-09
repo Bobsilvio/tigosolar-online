@@ -1,3 +1,32 @@
+> [!CAUTION]
+> # ⛔ This integration is discontinued — use [tigosolar-local](https://github.com/Bobsilvio/tigosolar-local)
+>
+> **EN** — tigosolar-online has been **merged into [tigosolar-local](https://github.com/Bobsilvio/tigosolar-local)**
+> (v4.0.0+), where this cloud engine is now the **Cloud source**, next to the local CCA / ESP32 sources.
+> This repository is **archived** and will receive no more updates or fixes.
+>
+> **Your entities and history are kept.** Both integrations use the same `tigo` folder:
+> **do not delete** the Tigo integration in *Settings → Devices & Services*, just swap the files:
+>
+> 1. **HACS → Tigo Energy (tigosolar-online) → ⋮ → Remove**
+> 2. **HACS → ⋮ → Custom repositories** → add `https://github.com/Bobsilvio/tigosolar-local` (Integration) and download **Tigo Energy**
+> 3. **Restart Home Assistant** — the existing entry is migrated automatically.
+>
+> [![Open tigosolar-local in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bobsilvio&repository=tigosolar-local&category=integration)
+>
+> ---
+>
+> **IT** — tigosolar-online è stata **unita in [tigosolar-local](https://github.com/Bobsilvio/tigosolar-local)**
+> (v4.0.0+), dove questo motore cloud è ora la **sorgente Cloud**, accanto alle sorgenti locali CCA / ESP32.
+> Questo repository è **archiviato** e non riceverà più aggiornamenti né correzioni.
+>
+> **Entità e storico vengono mantenuti.** Le due integrazioni usano la stessa cartella `tigo`:
+> **non eliminare** l'integrazione Tigo da *Impostazioni → Dispositivi e servizi*, sostituisci solo i file:
+>
+> 1. **HACS → Tigo Energy (tigosolar-online) → ⋮ → Rimuovi**
+> 2. **HACS → ⋮ → Repository personalizzati** → aggiungi `https://github.com/Bobsilvio/tigosolar-local` (Integrazione) e scarica **Tigo Energy**
+> 3. **Riavvia Home Assistant** — la configurazione esistente viene migrata in automatico.
+
 [![Sample](https://storage.ko-fi.com/cdn/generated/zfskfgqnf/2025-03-07_rest-7d81acd901abf101cbdf54443c38f6f0-dlmmonph.jpg)](https://ko-fi.com/silviosmart)
 
 ## Supportami / Support Me
